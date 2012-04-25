@@ -1031,6 +1031,14 @@ void LogMessage::Init(const char* file,
   data_->fullname_ = file;
   data_->has_been_flushed_ = false;
 
+  const int max_stripped_name_len = 7;
+  const char* stripped_name_start = data_->basename_;
+  const char* stripped_name_end = rindex(stripped_name_start, '.');
+  if(!stripped_name_end)
+    stripped_name_end = stripped_name_start + strlen(stripped_name_start);
+  if(stripped_name_end - stripped_name_start > max_stripped_name_len)
+    stripped_name_end = stripped_name_start + max_stripped_name_len;
+
   // If specified, prepend a prefix to each line.  For example:
   //    I1018 160715 f5d4fbb0 logging.cc:1153]
   //    (log level, GMT month, date, time, thread_id, file basename, line)
@@ -1047,8 +1055,9 @@ void LogMessage::Init(const char* file,
              << ' '
              << setfill(' ') << setw(5)
              << static_cast<unsigned int>(GetTID()) << setfill('0')
-             << ' '
-             << data_->basename_ << ':' << data_->line_ << "] ";
+             << ' ' << setfill(' ')
+             << setw(max_stripped_name_len) << std::string(stripped_name_start, stripped_name_end) << ':'
+             << setw(4) << setfill('0') << data_->line_ << ": ";
   }
   data_->num_prefix_chars_ = data_->stream_->pcount();
 
