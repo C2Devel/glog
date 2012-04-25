@@ -54,6 +54,7 @@
 #ifdef HAVE_SYSLOG_H
 # include <syslog.h>
 #endif
+#include <algorithm>
 #include <vector>
 #include <errno.h>                   // for errno
 #include <sstream>
@@ -691,8 +692,7 @@ void LogFileObject::FlushUnlocked(){
 }
 
 bool LogFileObject::CreateLogfile(const char* time_pid_string) {
-  string string_filename = base_filename_+filename_extension_+
-                           time_pid_string;
+  string string_filename = base_filename_ + filename_extension_ + '.' + time_pid_string;
   const char* filename = string_filename.c_str();
   int fd = open(filename, O_WRONLY | O_CREAT | O_EXCL, 0664);
   if (fd == -1) return false;
@@ -708,16 +708,18 @@ bool LogFileObject::CreateLogfile(const char* time_pid_string) {
     return false;
   }
 
-  // We try to create a symlink called <program_name>.<severity>,
+  // We try to create a symlink called <program_name>.<severity><extension>,
   // which is easier to use.  (Every time we create a new logfile,
   // we destroy the old symlink and create a new one, so it always
   // points to the latest logfile.)  If it fails, we're sad but it's
   // no error.
   if (!symlink_basename_.empty()) {
+    string severity = LogSeverityNames[severity_];
+    std::transform(severity.begin(), severity.end(), severity.begin(), ::tolower);
+
     // take directory from filename
     const char* slash = strrchr(filename, PATH_SEPARATOR);
-    const string linkname =
-      symlink_basename_ + '.' + LogSeverityNames[severity_];
+    const string linkname = symlink_basename_ + '.' + severity + filename_extension_;
     string linkpath;
     if ( slash ) linkpath = string(filename, slash-filename+1);  // get dirname
     linkpath += linkname;
