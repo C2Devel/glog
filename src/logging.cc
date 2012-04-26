@@ -823,15 +823,15 @@ void LogFileObject::Write(bool force_flush,
     ostrstream time_pid_stream(time_pid_string, sizeof(time_pid_string));
     time_pid_stream.fill('0');
     time_pid_stream << 1900+tm_time.tm_year
-		    << setw(2) << 1+tm_time.tm_mon
-		    << setw(2) << tm_time.tm_mday
-		    << '-'
-		    << setw(2) << tm_time.tm_hour
-		    << setw(2) << tm_time.tm_min
-		    << setw(2) << tm_time.tm_sec
-		    << '.'
-		    << GetMainThreadPid()
-		    << '\0';
+                    << setw(2) << 1+tm_time.tm_mon
+                    << setw(2) << tm_time.tm_mday
+                    << '-'
+                    << setw(2) << tm_time.tm_hour
+                    << setw(2) << tm_time.tm_min
+                    << setw(2) << tm_time.tm_sec
+                    << '.'
+                    << GetMainThreadPid()
+                    << '\0';
 
     if (base_filename_selected_) {
       if (!CreateLogfile(time_pid_string)) {
