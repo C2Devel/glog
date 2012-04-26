@@ -31,6 +31,7 @@
 
 #include "utilities.h"
 
+#include <dirent.h>
 #include <assert.h>
 #include <iomanip>
 #include <string>
@@ -55,6 +56,7 @@
 # include <syslog.h>
 #endif
 #include <algorithm>
+#include <set>
 #include <vector>
 #include <errno.h>                   // for errno
 #include <sstream>
@@ -159,6 +161,9 @@ GLOG_DEFINE_string(log_link, "", "Put additional links to the log "
 GLOG_DEFINE_int32(max_log_size, 1800,
                   "approx. maximum log file size (in MB). A value of 0 will "
                   "be silently overridden to 1.");
+
+GLOG_DEFINE_int32(max_log_number, 0,
+                  "Maximum log files number per severity");
 
 GLOG_DEFINE_bool(stop_logging_if_full_disk, false,
                  "Stop attempting to log to disk if the disk is full.");
@@ -694,6 +699,7 @@ void LogFileObject::FlushUnlocked(){
 bool LogFileObject::CreateLogfile(const char* time_pid_string) {
   string string_filename = base_filename_ + filename_extension_ + '.' + time_pid_string;
   const char* filename = string_filename.c_str();
+
   int fd = open(filename, O_WRONLY | O_CREAT | O_EXCL, 0664);
   if (fd == -1) return false;
 #ifdef HAVE_FCNTL
@@ -744,6 +750,39 @@ bool LogFileObject::CreateLogfile(const char* time_pid_string) {
       }
     }
 #endif
+  }
+
+  // Rotate log files
+  if (FLAGS_max_log_number >= 1) {
+    string logdir_path;
+    string const_logname;
+
+    if (const char* slash = strrchr(filename, PATH_SEPARATOR)) {
+      logdir_path = string(filename, slash - filename);
+      if (logdir_path.empty())
+        logdir_path = PATH_SEPARATOR;
+      const_logname = string(slash + 1, strlen(slash + 1) - strlen(time_pid_string));
+    } else {
+      logdir_path = ".";
+      const_logname = string(filename, strlen(filename) - strlen(time_pid_string));
+    }
+
+    if (DIR* logdir = opendir(logdir_path.c_str())) {
+      struct dirent entry;
+      struct dirent* result;
+      std::set<string> files;
+
+      while (!readdir_r(logdir, &entry, &result) && result)
+        if (!strncmp(const_logname.c_str(), result->d_name, const_logname.size()))
+          files.insert(result->d_name);
+
+      closedir(logdir);
+
+      ssize_t to_remove = files.size() - FLAGS_max_log_number;
+      std::set<string>::const_iterator it = files.begin();
+      while (to_remove-- > 0)
+        unlink((logdir_path + PATH_SEPARATOR + *it++).c_str());
+    }
   }
 
   return true;  // Everything worked
